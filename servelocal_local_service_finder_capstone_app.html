@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ServeLocal — Hybrid Local Service Marketplace</title>
+    <!-- Tailwind CSS CDN for responsive, utility-first styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter for crisp UI typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons CDN for modern, scalable vector icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar hiding for horizontal category pills on mobile */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Smooth fade transitions for portal switching */
+        .portal-view {
+            animation: fadeIn 0.25s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- =====================================================================
+         1. TOP NAVIGATION & 3-PORTAL ROLE SWITCHER HEADER
+         Demonstrates multi-tenant architecture (Customer, Vendor, Admin)
+         ===================================================================== -->
+    <header class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between py-3 gap-3">
+                
+                <!-- Brand Logo & Tagline -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5 cursor-pointer" onclick="switchRole('customer')">
+                        <div class="bg-brand-600 text-white p-2 rounded-xl shadow-sm">
+                            <i data-lucide="layers" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <span class="text-xl font-extrabold tracking-tight text-slate-900">Serve<span class="text-brand-600">Local</span></span>
+                            <span class="hidden sm:inline-block ml-2 text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 bg-brand-50 text-brand-700 rounded-full border border-brand-100">Hybrid MVP</span>
+                        </div>
+                    </div>
+
+                    <!-- Mobile My Bookings Quick Button -->
+                    <button onclick="toggleBookingsDrawer(true)" class="md:hidden relative inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition">
+                        <i data-lucide="calendar-check" class="w-4 h-4 text-brand-600"></i>
+                        <span>Bookings</span>
+                        <span id="mobile-booking-badge" class="ml-0.5 px-1.5 py-0.2 text-xs bg-brand-600 text-white rounded-full">2</span>
+                    </button>
+                </div>
+
+                <!-- 3-Portal Role Switcher Pills (Core Viva Demonstration Control) -->
+                <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 self-start md:self-auto overflow-x-auto max-w-full">
+                    <button id="tab-customer" onclick="switchRole('customer')" class="role-tab flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition bg-white text-brand-600 shadow-sm whitespace-nowrap">
+                        <i data-lucide="user" class="w-4 h-4"></i>
+                        <span>Customer View</span>
+                    </button>
+                    <button id="tab-provider" onclick="switchRole('provider')" class="role-tab flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition text-slate-600 hover:text-slate-900 whitespace-nowrap">
+                        <i data-lucide="briefcase" class="w-4 h-4"></i>
+                        <span>Provider Dashboard</span>
+                        <span id="provider-pending-dot" class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    </button>
+                    <button id="tab-admin" onclick="switchRole('admin')" class="role-tab flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition text-slate-600 hover:text-slate-900 whitespace-nowrap">
+                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                        <span>Admin Overview</span>
+                    </button>
+                </div>
+
+                <!-- Desktop Bookings Drawer Trigger -->
+                <div class="hidden md:flex items-center gap-3">
+                    <button onclick="toggleBookingsDrawer(true)" class="relative inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold shadow-sm transition">
+                        <i data-lucide="clipboard-list" class="w-4 h-4 text-brand-400"></i>
+                        <span>My Bookings & Enquiries</span>
+                        <span id="desktop-booking-badge" class="px-2 py-0.5 text-xs font-bold bg-brand-500 text-white rounded-full">2</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- =====================================================================
+         MAIN CONTENT CONTAINER (Switches dynamically between 3 Portals)
+         ===================================================================== -->
+    <main class="flex-grow">
+
+        <!-- =================================================================
+             PORTAL 1: CUSTOMER VIEW (Urban Company + Justdial Hybrid)
+             ================================================================= -->
+        <section id="portal-customer" class="portal-view">
+            <!-- Hero Search & Location Selector Banner -->
+            <div class="bg-gradient-to-br from-slate-900 via-brand-900 to-slate-900 text-white py-10 sm:py-14 px-4 sm:px-6 lg:px-8">
+                <div class="max-w-5xl mx-auto text-center">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-brand-100 text-xs font-medium mb-4">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+                        <span>Fixed-Price Packages + Instant Local Vendor Quotes</span>
+                    </div>
+                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mb-3">
+                        Trusted Home & Local Services, <span class="text-brand-400">On Demand</span>
+                    </h1>
+                    <p class="text-slate-300 text-sm sm:text-base max-w-2xl mx-auto mb-8">
+                        Book standardized, insured packages with transparent pricing or request free callbacks from verified local businesses in your neighborhood.
+                    </p>
+
+                    <!-- Integrated City Selector + Live Search Bar -->
+                    <div class="bg-white p-2 rounded-2xl shadow-xl max-w-3xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 text-slate-800">
+                        <!-- City Dropdown -->
+                        <div class="relative flex items-center sm:w-52 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200">
+                            <i data-lucide="map-pin" class="w-5 h-5 text-brand-600 shrink-0 mr-2"></i>
+                            <select id="city-selector" onchange="handleFilterChange()" class="w-full bg-transparent text-sm font-semibold text-slate-800 focus:outline-none cursor-pointer">
+                                <option value="Raipur">Raipur, CG</option>
+                                <option value="Mumbai">Mumbai, MH</option>
+                                <option value="Delhi">Delhi NCR</option>
+                                <option value="Bengaluru">Bengaluru, KA</option>
+                            </select>
+                        </div>
+
+                        <!-- Live Search Input -->
+                        <div class="relative flex-grow flex items-center px-3 py-2">
+                            <i data-lucide="search" class="w-5 h-5 text-slate-400 shrink-0 mr-2.5"></i>
+                            <input type="text" id="search-input" oninput="handleFilterChange()" placeholder="Search 'AC repair', 'Deep cleaning', 'Plumber'..." class="w-full text-sm text-slate-800 placeholder-slate-400 focus:outline-none">
+                            <button id="clear-search-btn" onclick="clearSearch()" class="hidden text-slate-400 hover:text-slate-600 p-1">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Model Type Filter (All / Fixed Package / Free Quote) -->
+                        <div class="flex items-center gap-1 border-t sm:border-t-0 sm:border-l border-slate-200 pt-2 sm:pt-0 sm:pl-2">
+                            <select id="model-filter" onchange="handleFilterChange()" class="w-full sm:w-auto bg-brand-50 text-brand-700 text-xs font-semibold px-3 py-2.5 rounded-xl border border-brand-100 focus:outline-none cursor-pointer">
+                                <option value="all">All Models</option>
+                                <option value="package">Fixed Price (UC Style)</option>
+                                <option value="quote">Free Quote (JD Style)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Pills & Services Grid -->
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                
+                <!-- Horizontal Scrollable Category Filter Pills -->
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-slate-900">Browse by Category</h2>
+                    <span id="results-count" class="text-xs font-semibold text-slate-500 bg-slate-200/70 px-2.5 py-1 rounded-full">Showing 8 services</span>
+                </div>
+
+                <div id="category-pills" class="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-4 mb-6">
+                    <!-- Rendered dynamically via JavaScript -->
+                </div>
+
+                <!-- Services Grid -->
+                <div id="services-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Service Cards injected here by JS -->
+                </div>
+
+                <!-- Empty State if no matching services -->
+                <div id="empty-services-state" class="hidden text-center py-16 bg-white rounded-2xl border border-slate-200">
+                    <div class="w-14 h-14 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="search-x" class="w-7 h-7"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900">No matching services found</h3>
+                    <p class="text-sm text-slate-500 max-w-md mx-auto mt-1 mb-4">Try switching cities, clearing your search query, or selecting "All Categories".</p>
+                    <button onclick="resetAllFilters()" class="px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700 transition">Reset Filters</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- =================================================================
+             PORTAL 2: SERVICE PROVIDER DASHBOARD (Vendor Portal)
+             Allows vendor to toggle availability, accept/reject leads & track earnings
+             ================================================================= -->
+        <section id="portal-provider" class="portal-view hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Provider Top Profile & Online/Offline Status Bar -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-brand-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">
+                        RK
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h1 class="text-xl font-bold text-slate-900">Rajesh Kumar — CoolTech Services</h1>
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <i data-lucide="badge-check" class="w-3.5 h-3.5"></i> KYC Verified Partner
+                            </span>
+                        </div>
+                        <p class="text-sm text-slate-500 mt-0.5">Category: Appliance Repair & Electrical • Service Zone: Raipur & All Cities</p>
+                    </div>
+                </div>
+
+                <!-- Interactive Online / Offline Availability Switch -->
+                <div class="flex items-center gap-3 bg-slate-50 px-4 py-3 rounded-xl border border-slate-200">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Duty Status</p>
+                        <p id="provider-status-text" class="text-sm font-bold text-emerald-600">Online — Accepting Jobs</p>
+                    </div>
+                    <button id="availability-toggle" onclick="toggleProviderAvailability()" class="relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-emerald-500 transition-colors duration-200 ease-in-out focus:outline-none" role="switch" aria-checked="true">
+                        <span id="availability-knob" class="translate-x-5 pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Provider KPI Metrics Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-semibold uppercase">Net Earnings (MTD)</span>
+                        <i data-lucide="indian-rupee" class="w-4 h-4 text-emerald-600"></i>
+                    </div>
+                    <p id="provider-earnings" class="text-2xl font-extrabold text-slate-900">₹18,450</p>
+                    <p class="text-xs text-emerald-600 font-medium mt-1">+14% vs last month</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-semibold uppercase">Pending Requests</span>
+                        <i data-lucide="clock" class="w-4 h-4 text-amber-500"></i>
+                    </div>
+                    <p id="provider-pending-count" class="text-2xl font-extrabold text-slate-900">1</p>
+                    <p class="text-xs text-slate-500 mt-1">Respond within 15 mins</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-semibold uppercase">Confirmed Jobs</span>
+                        <i data-lucide="check-circle-2" class="w-4 h-4 text-brand-600"></i>
+                    </div>
+                    <p id="provider-accepted-count" class="text-2xl font-extrabold text-slate-900">1</p>
+                    <p class="text-xs text-slate-500 mt-1">Scheduled for upcoming slots</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-semibold uppercase">Partner Rating</span>
+                        <i data-lucide="star" class="w-4 h-4 text-amber-400 fill-amber-400"></i>
+                    </div>
+                    <p class="text-2xl font-extrabold text-slate-900">4.85 <span class="text-sm font-normal text-slate-400">/ 5</span></p>
+                    <p class="text-xs text-slate-500 mt-1">Based on 142 completed jobs</p>
+                </div>
+            </div>
+
+            <!-- Incoming Bookings & Lead Requests Table/Cards -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900">Live Job Requests & Lead Enquiries</h2>
+                        <p class="text-xs text-slate-500">Bookings placed in the Customer View appear here in real time</p>
+                    </div>
+                    <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-brand-50 text-brand-700">Live Sync Active</span>
+                </div>
+                <div id="provider-jobs-list" class="divide-y divide-slate-100">
+                    <!-- Dynamically populated with bookings -->
+                </div>
+            </div>
+        </section>
+
+        <!-- =================================================================
+             PORTAL 3: ADMIN OVERVIEW (Marketplace Governance & Analytics)
+             ================================================================= -->
+        <section id="portal-admin" class="portal-view hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="mb-6">
+                <h1 class="text-2xl font-extrabold text-slate-900">Platform Admin Control Center</h1>
+                <p class="text-sm text-slate-500">Monitor Gross Merchandise Value (GMV), commission revenue, vendor KYC approvals, and hybrid lead conversions.</p>
+            </div>
+
+            <!-- Platform-Wide Metrics -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <span class="text-xs font-semibold uppercase text-slate-500">Total Platform GMV</span>
+                    <p id="admin-gmv" class="text-2xl font-extrabold text-slate-900 mt-1">₹4,82,900</p>
+                    <span class="inline-block mt-2 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">+22.4% MoM</span>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <span class="text-xs font-semibold uppercase text-slate-500">Commission Revenue (18%)</span>
+                    <p id="admin-commission" class="text-2xl font-extrabold text-brand-600 mt-1">₹86,922</p>
+                    <span class="inline-block mt-2 text-xs text-slate-500">Fixed packages + Lead fees</span>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <span class="text-xs font-semibold uppercase text-slate-500">Active Verified Vendors</span>
+                    <p class="text-2xl font-extrabold text-slate-900 mt-1">348</p>
+                    <span class="inline-block mt-2 text-xs text-slate-500">Across 4 active cities</span>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <span class="text-xs font-semibold uppercase text-slate-500">Total Live Orders</span>
+                    <p id="admin-total-orders" class="text-2xl font-extrabold text-slate-900 mt-1">2</p>
+                    <span class="inline-block mt-2 text-xs text-brand-600 font-medium">Real-time session state</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Vendor KYC Approval Queue -->
+                <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                        <h2 class="text-base font-bold text-slate-900">Vendor Onboarding & KYC Verification Queue</h2>
+                        <span class="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">Action Required</span>
+                    </div>
+                    <div id="admin-kyc-list" class="divide-y divide-slate-100">
+                        <!-- KYC items populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Revenue Split & Architecture Summary Card -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 mb-1">Hybrid Monetization Split</h2>
+                        <p class="text-xs text-slate-500 mb-5">Dual-revenue model combining UC & Justdial</p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex justify-between text-xs font-semibold mb-1">
+                                    <span class="text-slate-700">Managed Packages (18% Commission)</span>
+                                    <span class="text-brand-600">68%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2.5">
+                                    <div class="bg-brand-600 h-2.5 rounded-full" style="width: 68%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs font-semibold mb-1">
+                                    <span class="text-slate-700">Directory Lead Credits (₹49/lead)</span>
+                                    <span class="text-amber-500">32%</span>
+                                </div>
+                                <div class="w-full bg-slate-100 rounded-full h-2.5">
+                                    <div class="bg-amber-500 h-2.5 rounded-full" style="width: 32%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-5 border-t border-slate-100">
+                        <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80">
+                            <p class="text-xs font-bold text-slate-800 mb-1">System Architecture Note</p>
+                            <p class="text-xs text-slate-500 leading-relaxed">
+                                State changes in <strong>Customer View</strong> automatically update <strong>Provider</strong> and <strong>Admin</strong> ledgers via centralized reactive state management.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- =====================================================================
+         2. INTERACTIVE BOOKING & LEAD ENQUIRY MODAL
+         Handles both Fixed-Price Checkout (UC) and Free Quote Requests (JD)
+         ===================================================================== -->
+    <div id="booking-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end sm:items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <!-- Backdrop -->
+            <div onclick="closeBookingModal()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"></div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <!-- Modal Panel -->
+            <div class="relative inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-slate-200">
+                <div class="bg-white px-6 pt-6 pb-5">
+                    <div class="flex items-start justify-between border-b border-slate-100 pb-4">
+                        <div>
+                            <span id="modal-badge" class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-50 text-brand-700 mb-1.5">Fixed Price Booking</span>
+                            <h3 id="modal-service-title" class="text-lg font-extrabold text-slate-900">Service Title</h3>
+                            <p id="modal-provider-name" class="text-xs text-slate-500 mt-0.5">Provider Name • City</p>
+                        </div>
+                        <button onclick="closeBookingModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+
+                    <!-- Interactive Booking Form -->
+                    <form id="booking-form" onsubmit="submitBookingForm(event)" class="mt-4 space-y-4">
+                        <input type="hidden" id="modal-service-id">
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Your Full Name *</label>
+                                <input type="text" id="cust-name" required placeholder="e.g. Ananya Sharma" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Mobile Number *</label>
+                                <input type="tel" id="cust-phone" required pattern="[0-9]{10}" placeholder="10-digit mobile" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Preferred Date *</label>
+                                <input type="date" id="booking-date" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Time Slot *</label>
+                                <select id="booking-slot" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none">
+                                    <option value="09:00 AM - 11:00 AM">09:00 AM - 11:00 AM</option>
+                                    <option value="11:30 AM - 01:30 PM">11:30 AM - 01:30 PM</option>
+                                    <option value="02:30 PM - 04:30 PM">02:30 PM - 04:30 PM</option>
+                                    <option value="05:00 PM - 07:00 PM">05:00 PM - 07:00 PM</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Complete Service Address *</label>
+                            <textarea id="cust-address" rows="2" required placeholder="House/Flat No., Street, Landmark, PIN Code" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"></textarea>
+                        </div>
+
+                        <!-- Dynamic Summary Box -->
+                        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-slate-500 font-medium" id="modal-price-label">Total Payable Amount</p>
+                                <p class="text-lg font-extrabold text-slate-900" id="modal-price-value">₹599</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                                    Pay after service / Free cancellation
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 flex items-center justify-end gap-2.5">
+                            <button type="button" onclick="closeBookingModal()" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition">Cancel</button>
+                            <button type="submit" id="modal-submit-btn" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold shadow-sm transition">
+                                Confirm Booking
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         3. SLIDE-OVER DRAWER: MY BOOKINGS & ENQUIRIES
+         ===================================================================== -->
+    <div id="bookings-drawer" class="fixed inset-0 z-50 hidden overflow-hidden" role="dialog" aria-modal="true">
+        <div class="absolute inset-0 overflow-hidden">
+            <!-- Backdrop -->
+            <div onclick="toggleBookingsDrawer(false)" class="absolute inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"></div>
+
+            <div class="fixed inset-y-0 right-0 pl-10 max-w-full flex">
+                <div class="w-screen max-w-md bg-white shadow-2xl flex flex-col justify-between">
+                    <div>
+                        <!-- Drawer Header -->
+                        <div class="px-6 py-5 bg-slate-900 text-white flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <i data-lucide="clipboard-check" class="w-5 h-5 text-brand-400"></i>
+                                <h2 class="text-base font-bold">My Bookings & Enquiries</h2>
+                            </div>
+                            <button onclick="toggleBookingsDrawer(false)" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                                <i data-lucide="x" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+
+                        <!-- Drawer Body List -->
+                        <div id="drawer-bookings-list" class="p-6 space-y-4 overflow-y-auto max-h-[calc(100vh-140px)]">
+                            <!-- Bookings rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Drawer Footer -->
+                    <div class="p-4 border-t border-slate-200 bg-slate-50 text-center">
+                        <p class="text-xs text-slate-500">Switch to <strong>Provider Dashboard</strong> in the navbar to accept or decline these requests.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         4. TOAST NOTIFICATION BANNER (Replaces native alert())
+         ===================================================================== -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <p><strong class="text-slate-700">ServeLocal</strong> — Hybrid On-Demand Service Marketplace & Local Directory Capstone Project.</p>
+            <p>Architecture: 3-Portal SPA (Customer • Service Provider • Admin)</p>
+        </div>
+    </footer>
+
+    <!-- =====================================================================
+         APPLICATION LOGIC & MOCK DATABASE (JavaScript)
+         ===================================================================== -->
+    <script>
+        /**
+         * 1. INITIAL MOCK DATASET (Realistic Indian Hyper-Local Services)
+         * Combines Urban Company standardized packages ('package') and
+         * Justdial lead-generation business listings ('quote').
+         */
+        const CATEGORIES = [
+            { id: 'All', label: 'All Services', icon: 'layout-grid' },
+            { id: 'Home Cleaning', label: 'Home Cleaning', icon: 'sparkles' },
+            { id: 'Appliance Repair', label: 'Appliance Repair', icon: 'wrench' },
+            { id: 'Plumbing', label: 'Plumbing', icon: 'droplets' },
+            { id: 'Salon & Spa', label: 'Salon & Spa', icon: 'scissors' },
+            { id: 'Electricians', label: 'Electricians', icon: 'zap' },
+            { id: 'Pest Control', label: 'Pest Control', icon: 'shield-alert' }
+        ];
+
+        const SERVICES_DATA = [
+            {
+                id: 'SRV-101',
+                title: 'Split / Window AC Foam-Jet Deep Service',
+                provider: 'CoolTech Home Solutions',
+                category: 'Appliance Repair',
+                cities: ['Raipur', 'Mumbai', 'Delhi', 'Bengaluru'],
+                rating: 4.88,
+                reviews: 412,
+                experience: '7 yrs exp',
+                verified: true,
+                model: 'package', // Urban Company Fixed Package
+                price: 599,
+                priceDisplay: '₹599',
+                duration: '60 mins',
+                highlights: ['2X deeper dust removal with foam-jet', '30-day service warranty included']
+            },
+            {
+                id: 'SRV-102',
+                title: 'Full Home Deep Cleaning (2 BHK / 3 BHK)',
+                provider: 'SparklePro Hygiene Services',
+                category: 'Home Cleaning',
+                cities: ['Raipur', 'Mumbai', 'Delhi', 'Bengaluru'],
+                rating: 4.79,
+                reviews: 289,
+                experience: '5 yrs exp',
+                verified: true,
+                model: 'quote', // Justdial Free Quote Lead
+                price: 0,
+                priceDisplay: 'Free Quote',
+                duration: '4-5 hrs',
+                highlights: ['Custom quote based on carpet area', 'Eco-friendly hospital-grade chemicals']
+            },
+            {
+                id: 'SRV-103',
+                title: 'Tap, Mixer & Overhead Tank Leakage Repair',
+                provider: 'Sharma Rapid Plumbers',
+                category: 'Plumbing',
+                cities: ['Raipur', 'Delhi', 'Mumbai'],
+                rating: 4.72,
+                reviews: 198,
+                experience: '9 yrs exp',
+                verified: true,
+                model: 'package',
+                price: 249,
+                priceDisplay: '₹249',
+                duration: '45 mins',
+                highlights: ['Upfront rate card for spare parts', 'Arrives within 45 minutes']
+            },
+            {
+                id: 'SRV-104',
+                title: 'Bridal & Party Makeup + Hair Styling at Home',
+                provider: 'Aura Luxe Salon Studio',
+                category: 'Salon & Spa',
+                cities: ['Raipur', 'Mumbai', 'Bengaluru'],
+                rating: 4.94,
+                reviews: 530,
+                experience: '6 yrs exp',
+                verified: true,
+                model: 'package',
+                price: 1499,
+                priceDisplay: '₹1,499',
+                duration: '90 mins',
+                highlights: ['Branded sealed cosmetics used', 'Certified senior beauticians']
+            },
+            {
+                id: 'SRV-105',
+                title: 'Inverter, MCB & Complete House Wiring Setup',
+                provider: 'VoltSafe Electrical Works',
+                category: 'Electricians',
+                cities: ['Raipur', 'Bengaluru', 'Delhi'],
+                rating: 4.68,
+                reviews: 154,
+                experience: '11 yrs exp',
+                verified: true,
+                model: 'quote',
+                price: 0,
+                priceDisplay: 'Get Free Quote',
+                duration: 'Custom',
+                highlights: ['Free on-site load inspection', 'Licensed Class-A electrical contractors']
+            },
+            {
+                id: 'SRV-106',
+                title: 'Herbal Cockroach & Ant Gel Treatment',
+                provider: 'ShieldGuard Pest Control',
+                category: 'Pest Control',
+                cities: ['Raipur', 'Mumbai', 'Delhi', 'Bengaluru'],
+                rating: 4.83,
+                reviews: 320,
+                experience: '8 yrs exp',
+                verified: true,
+                model: 'package',
+                price: 899,
+                priceDisplay: '₹899',
+                duration: '60 mins',
+                highlights: ['Odorless & safe for kids/pets', '1 free follow-up visit within 45 days']
+            },
+            {
+                id: 'SRV-107',
+                title: 'Front/Top Load Washing Machine Drum Repair',
+                provider: 'Metro Appliance Care',
+                category: 'Appliance Repair',
+                cities: ['Mumbai', 'Bengaluru', 'Delhi', 'Raipur'],
+                rating: 4.76,
+                reviews: 241,
+                experience: '6 yrs exp',
+                verified: true,
+                model: 'package',
+                price: 349,
+                priceDisplay: '₹349',
+                duration: '60 mins',
+                highlights: ['Inspection fee waived on repair', 'Genuine OEM spare parts']
+            },
+            {
+                id: 'SRV-108',
+                title: 'Sofa & Carpet Shampoo Vacuum Spa (5-Seater)',
+                provider: 'UrbanShine Cleaners',
+                category: 'Home Cleaning',
+                cities: ['Raipur', 'Delhi', 'Bengaluru'],
+                rating: 4.85,
+                reviews: 176,
+                experience: '4 yrs exp',
+                verified: false,
+                model: 'package',
+                price: 799,
+                priceDisplay: '₹799',
+                duration: '75 mins',
+                highlights: ['Wet & dry industrial extraction', 'Removes tough stains & allergens']
+            }
+        ];
+
+        /**
+         * 2. CENTRALIZED APPLICATION STATE
+         * Pre-populated with 2 realistic orders so Provider & Admin portals look rich immediately.
+         */
+        let appState = {
+            activeRole: 'customer',
+            selectedCategory: 'All',
+            selectedCity: 'Raipur',
+            searchQuery: '',
+            modelFilter: 'all',
+            providerOnline: true,
+            bookings: [
+                {
+                    id: 'BK-8041',
+                    serviceId: 'SRV-101',
+                    serviceTitle: 'Split / Window AC Foam-Jet Deep Service',
+                    provider: 'CoolTech Home Solutions',
+                    model: 'package',
+                    price: 599,
+                    priceDisplay: '₹599',
+                    customerName: 'Vikram Deshmukh',
+                    customerPhone: '9826145092',
+                    city: 'Raipur',
+                    address: 'B-42, Shankar Nagar, Near Turning Point, Raipur',
+                    date: '2026-11-20',
+                    slot: '11:30 AM - 01:30 PM',
+                    status: 'Pending' // Pending | Confirmed | Declined
+                },
+                {
+                    id: 'BK-8039',
+                    serviceId: 'SRV-102',
+                    serviceTitle: 'Full Home Deep Cleaning (2 BHK / 3 BHK)',
+                    provider: 'SparklePro Hygiene Services',
+                    model: 'quote',
+                    price: 0,
+                    priceDisplay: 'Free Quote Requested',
+                    customerName: 'Sneha Agrawal',
+                    customerPhone: '9425211890',
+                    city: 'Raipur',
+                    address: 'Flat 304, Avinash Pride, GE Road, Raipur',
+                    date: '2026-11-21',
+                    slot: '09:00 AM - 11:00 AM',
+                    status: 'Confirmed'
+                }
+            ],
+            kycQueue: [
+                { id: 'VND-09', name: 'Sai Krupa Plumbing & Sanitary', city: 'Raipur', doc: 'Aadhaar + Trade License', status: 'Pending' },
+                { id: 'VND-12', name: 'Glamour At Doorstep Studio', city: 'Mumbai', doc: 'PAN + Beautician Cert.', status: 'Pending' }
+            ]
+        };
+
+        /**
+         * 3. INITIALIZATION ON PAGE LOAD
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set default date in booking modal to tomorrow
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('booking-date').value = tomorrow.toISOString().split('T')[0];
+
+            renderCategoryPills();
+            renderServices();
+            renderBookingsDrawer();
+            renderProviderDashboard();
+            renderAdminOverview();
+            lucide.createIcons();
+        });
+
+        /**
+         * 4. PORTAL ROLE SWITCHER LOGIC (Customer / Provider / Admin)
+         */
+        function switchRole(role) {
+            appState.activeRole = role;
+
+            // Hide all portals
+            document.querySelectorAll('.portal-view').forEach(el => el.classList.add('hidden'));
+            // Show active portal
+            document.getElementById(`portal-${role}`).classList.remove('hidden');
+
+            // Update tab button active styling
+            document.querySelectorAll('.role-tab').forEach(btn => {
+                btn.classList.remove('bg-white', 'text-brand-600', 'shadow-sm');
+                btn.classList.add('text-slate-600');
+            });
+            const activeTab = document.getElementById(`tab-${role}`);
+            activeTab.classList.remove('text-slate-600');
+            activeTab.classList.add('bg-white', 'text-brand-600', 'shadow-sm');
+
+            // Refresh portal data
+            if (role === 'provider') renderProviderDashboard();
+            if (role === 'admin') renderAdminOverview();
+            lucide.createIcons();
+        }
+
+        /**
+         * 5. CUSTOMER VIEW: CATEGORY PILLS & LIVE SEARCH FILTERING
+         */
+        function renderCategoryPills() {
+            const container = document.getElementById('category-pills');
+            container.innerHTML = CATEGORIES.map(cat => {
+                const isSelected = appState.selectedCategory === cat.id;
+                const activeClasses = isSelected
+                    ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-brand-300 hover:bg-brand-50/50';
+                return `
+                    <button onclick="selectCategory('${cat.id}')" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold whitespace-nowrap transition ${activeClasses}">
+                        <i data-lucide="${cat.icon}" class="w-4 h-4"></i>
+                        <span>${cat.label}</span>
+                    </button>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function selectCategory(categoryId) {
+            appState.selectedCategory = categoryId;
+            renderCategoryPills();
+            renderServices();
+        }
+
+        function handleFilterChange() {
+            appState.selectedCity = document.getElementById('city-selector').value;
+            appState.searchQuery = document.getElementById('search-input').value.trim().toLowerCase();
+            appState.modelFilter = document.getElementById('model-filter').value;
+
+            const clearBtn = document.getElementById('clear-search-btn');
+            clearBtn.classList.toggle('hidden', appState.searchQuery.length === 0);
+
+            renderServices();
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            handleFilterChange();
+        }
+
+        function resetAllFilters() {
+            appState.selectedCategory = 'All';
+            document.getElementById('search-input').value = '';
+            document.getElementById('model-filter').value = 'all';
+            handleFilterChange();
+            renderCategoryPills();
+        }
+
+        function renderServices() {
+            const grid = document.getElementById('services-grid');
+            const emptyState = document.getElementById('empty-services-state');
+            const countLabel = document.getElementById('results-count');
+
+            const filtered = SERVICES_DATA.filter(service => {
+                const matchesCity = service.cities.includes(appState.selectedCity);
+                const matchesCategory = appState.selectedCategory === 'All' || service.category === appState.selectedCategory;
+                const matchesModel = appState.modelFilter === 'all' || service.model === appState.modelFilter;
+                const matchesSearch = !appState.searchQuery ||
+                    service.title.toLowerCase().includes(appState.searchQuery) ||
+                    service.provider.toLowerCase().includes(appState.searchQuery) ||
+                    service.category.toLowerCase().includes(appState.searchQuery);
+
+                return matchesCity && matchesCategory && matchesModel && matchesSearch;
+            });
+
+            countLabel.textContent = `Showing ${filtered.length} service${filtered.length === 1 ? '' : 's'} in ${appState.selectedCity}`;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            grid.innerHTML = filtered.map(srv => {
+                const isPackage = srv.model === 'package';
+                const modelBadge = isPackage
+                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">Fixed Package</span>`
+                    : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Directory Lead</span>`;
+
+                const actionBtn = isPackage
+                    ? `<button onclick="openBookingModal('${srv.id}')" class="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition flex items-center gap-1.5">
+                           <span>Book Now</span>
+                           <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                       </button>`
+                    : `<button onclick="openBookingModal('${srv.id}')" class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-semibold shadow-sm transition flex items-center gap-1.5">
+                           <i data-lucide="phone-call" class="w-4 h-4"></i>
+                           <span>Get Free Quote</span>
+                       </button>`;
+
+                return `
+                    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                        <div>
+                            <!-- Top Meta Badges -->
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <span class="text-xs font-semibold text-slate-500">${srv.category}</span>
+                                ${modelBadge}
+                            </div>
+
+                            <!-- Title & Provider -->
+                            <h3 class="text-base sm:text-lg font-bold text-slate-900 leading-snug mb-1.5">${srv.title}</h3>
+                            <div class="flex items-center gap-1.5 text-xs text-slate-600 mb-3">
+                                <span class="font-medium">${srv.provider}</span>
+                                ${srv.verified ? `<span class="inline-flex items-center gap-0.5 text-emerald-600 font-semibold" title="KYC & Background Verified"><i data-lucide="badge-check" class="w-4 h-4"></i> Verified</span>` : ''}
+                            </div>
+
+                            <!-- Rating & Experience Row -->
+                            <div class="flex items-center gap-3 text-xs text-slate-600 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 mb-4">
+                                <div class="flex items-center gap-1 font-bold text-slate-900">
+                                    <i data-lucide="star" class="w-3.5 h-3.5 text-amber-400 fill-amber-400"></i>
+                                    <span>${srv.rating}</span>
+                                    <span class="font-normal text-slate-400">(${srv.reviews})</span>
+                                </div>
+                                <span class="text-slate-300">•</span>
+                                <span>${srv.experience}</span>
+                                <span class="text-slate-300">•</span>
+                                <span>${srv.duration}</span>
+                            </div>
+
+                            <!-- Key Highlights -->
+                            <ul class="space-y-1.5 mb-5">
+                                ${srv.highlights.map(item => `
+                                    <li class="flex items-start gap-2 text-xs text-slate-600">
+                                        <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5"></i>
+                                        <span>${item}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+
+                        <!-- Card Footer: Price & Action CTA -->
+                        <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+                            <div>
+                                <p class="text-[11px] text-slate-400 font-medium">${isPackage ? 'Standard Price' : 'Inspection & Estimate'}</p>
+                                <p class="text-lg font-extrabold text-slate-900">${srv.priceDisplay}</p>
+                            </div>
+                            ${actionBtn}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        /**
+         * 6. BOOKING & LEAD ENQUIRY MODAL LOGIC
+         */
+        function openBookingModal(serviceId) {
+            const service = SERVICES_DATA.find(s => s.id === serviceId);
+            if (!service) return;
+
+            const isPackage = service.model === 'package';
+            document.getElementById('modal-service-id').value = service.id;
+            document.getElementById('modal-service-title').textContent = service.title;
+            document.getElementById('modal-provider-name').textContent = `${service.provider} • ${appState.selectedCity}`;
+
+            const badge = document.getElementById('modal-badge');
+            const priceLabel = document.getElementById('modal-price-label');
+            const priceValue = document.getElementById('modal-price-value');
+            const submitBtn = document.getElementById('modal-submit-btn');
+
+            if (isPackage) {
+                badge.textContent = 'Urban Company Style • Direct Booking';
+                badge.className = 'inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 mb-1.5';
+                priceLabel.textContent = 'Standardized Package Price';
+                priceValue.textContent = service.priceDisplay;
+                submitBtn.textContent = 'Confirm Instant Booking';
+                submitBtn.className = 'px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold shadow-sm transition';
+            } else {
+                badge.textContent = 'Justdial Style • Free Callback & Quote';
+                badge.className = 'inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 mb-1.5';
+                priceLabel.textContent = 'Estimated Consultation Fee';
+                priceValue.textContent = '₹0 (Free Quote)';
+                submitBtn.textContent = 'Request Free Callback';
+                submitBtn.className = 'px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold shadow-sm transition';
+            }
+
+            document.getElementById('booking-modal').classList.remove('hidden');
+        }
+
+        function closeBookingModal() {
+            document.getElementById('booking-modal').classList.add('hidden');
+        }
+
+        function submitBookingForm(event) {
+            event.preventDefault();
+
+            const serviceId = document.getElementById('modal-service-id').value;
+            const service = SERVICES_DATA.find(s => s.id === serviceId);
+            const custName = document.getElementById('cust-name').value.trim();
+            const custPhone = document.getElementById('cust-phone').value.trim();
+            const date = document.getElementById('booking-date').value;
+            const slot = document.getElementById('booking-slot').value;
+            const address = document.getElementById('cust-address').value.trim();
+
+            const newBooking = {
+                id: 'BK-' + Math.floor(1000 + Math.random() * 9000),
+                serviceId: service.id,
+                serviceTitle: service.title,
+                provider: service.provider,
+                model: service.model,
+                price: service.price,
+                priceDisplay: service.model === 'package' ? service.priceDisplay : 'Free Quote Requested',
+                customerName: custName,
+                customerPhone: custPhone,
+                city: appState.selectedCity,
+                address: address,
+                date: date,
+                slot: slot,
+                status: 'Pending'
+            };
+
+            // Add to top of bookings array
+            appState.bookings.unshift(newBooking);
+
+            // Reset form & close modal
+            document.getElementById('booking-form').reset();
+            closeBookingModal();
+
+            // Update all 3 portals and open bookings drawer
+            renderBookingsDrawer();
+            renderProviderDashboard();
+            renderAdminOverview();
+            showToast(
+                service.model === 'package'
+                    ? `Booking ${newBooking.id} confirmed! Sent to Provider Dashboard.`
+                    : `Quote enquiry ${newBooking.id} sent! Vendor will call you shortly.`,
+                'success'
+            );
+            toggleBookingsDrawer(true);
+        }
+
+        /**
+         * 7. MY BOOKINGS & ENQUIRIES DRAWER LOGIC
+         */
+        function toggleBookingsDrawer(show) {
+            const drawer = document.getElementById('bookings-drawer');
+            drawer.classList.toggle('hidden', !show);
+            if (show) renderBookingsDrawer();
+        }
+
+        function renderBookingsDrawer() {
+            const list = document.getElementById('drawer-bookings-list');
+            const totalCount = appState.bookings.length;
+
+            document.getElementById('mobile-booking-badge').textContent = totalCount;
+            document.getElementById('desktop-booking-badge').textContent = totalCount;
+
+            if (totalCount === 0) {
+                list.innerHTML = `<p class="text-sm text-slate-500 text-center py-10">No bookings or enquiries yet.</p>`;
+                return;
+            }
+
+            list.innerHTML = appState.bookings.map(bk => {
+                let statusBadge = '';
+                if (bk.status === 'Pending') {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Awaiting Vendor</span>`;
+                } else if (bk.status === 'Confirmed') {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Confirmed</span>`;
+                } else {
+                    statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">Declined</span>`;
+                }
+
+                return `
+                    <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-400">${bk.id} • ${bk.city}</span>
+                            ${statusBadge}
+                        </div>
+                        <h4 class="text-sm font-bold text-slate-900">${bk.serviceTitle}</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">${bk.provider}</p>
+                        <div class="mt-3 pt-3 border-t border-slate-200/80 text-xs text-slate-600 space-y-1">
+                            <p><strong>Schedule:</strong> ${bk.date} (${bk.slot})</p>
+                            <p><strong>Address:</strong> ${bk.address}</p>
+                            <p><strong>Amount:</strong> <span class="font-bold text-slate-900">${bk.priceDisplay}</span></p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * 8. SERVICE PROVIDER DASHBOARD LOGIC
+         */
+        function toggleProviderAvailability() {
+            appState.providerOnline = !appState.providerOnline;
+            const toggleBtn = document.getElementById('availability-toggle');
+            const knob = document.getElementById('availability-knob');
+            const statusText = document.getElementById('provider-status-text');
+
+            if (appState.providerOnline) {
+                toggleBtn.classList.replace('bg-slate-300', 'bg-emerald-500');
+                knob.classList.replace('translate-x-0', 'translate-x-5');
+                statusText.textContent = 'Online — Accepting Jobs';
+                statusText.className = 'text-sm font-bold text-emerald-600';
+                showToast('You are now ONLINE and visible to customers.', 'success');
+            } else {
+                toggleBtn.classList.replace('bg-emerald-500', 'bg-slate-300');
+                knob.classList.replace('translate-x-5', 'translate-x-0');
+                statusText.textContent = 'Offline — Paused';
+                statusText.className = 'text-sm font-bold text-slate-500';
+                showToast('You are now OFFLINE. New requests paused.', 'info');
+            }
+        }
+
+        function updateBookingStatus(bookingId, newStatus) {
+            const booking = appState.bookings.find(b => b.id === bookingId);
+            if (!booking) return;
+
+            booking.status = newStatus;
+            renderProviderDashboard();
+            renderBookingsDrawer();
+            renderAdminOverview();
+
+            showToast(
+                newStatus === 'Confirmed'
+                    ? `Job ${bookingId} accepted! Customer notified.`
+                    : `Job ${bookingId} declined.`,
+                newStatus === 'Confirmed' ? 'success' : 'info'
+            );
+        }
+
+        function renderProviderDashboard() {
+            const list = document.getElementById('provider-jobs-list');
+            const pendingJobs = appState.bookings.filter(b => b.status === 'Pending');
+            const confirmedJobs = appState.bookings.filter(b => b.status === 'Confirmed');
+
+            // Update KPI counters
+            document.getElementById('provider-pending-count').textContent = pendingJobs.length;
+            document.getElementById('provider-accepted-count').textContent = confirmedJobs.length;
+            document.getElementById('provider-pending-dot').classList.toggle('hidden', pendingJobs.length === 0);
+
+            // Calculate dynamic earnings from confirmed package jobs
+            const sessionEarnings = confirmedJobs.reduce((sum, item) => sum + (item.price || 0), 0);
+            document.getElementById('provider-earnings').textContent = '₹' + (18450 + sessionEarnings).toLocaleString('en-IN');
+
+            list.innerHTML = appState.bookings.map(bk => {
+                const isPending = bk.status === 'Pending';
+                return `
+                    <div class="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/70 transition">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">${bk.id}</span>
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded ${bk.model === 'package' ? 'bg-indigo-50 text-indigo-700' : 'bg-amber-50 text-amber-700'}">
+                                    ${bk.model === 'package' ? 'Fixed Package (' + bk.priceDisplay + ')' : 'Lead Enquiry (Free Quote)'}
+                                </span>
+                                <span class="text-xs text-slate-400">• ${bk.city}</span>
+                            </div>
+                            <h3 class="text-base font-bold text-slate-900">${bk.serviceTitle}</h3>
+                            <p class="text-xs text-slate-600">
+                                <strong>Customer:</strong> ${bk.customerName} (${bk.customerPhone}) • <strong>Slot:</strong> ${bk.date} at ${bk.slot}
+                            </p>
+                            <p class="text-xs text-slate-500"><strong>Location:</strong> ${bk.address}</p>
+                        </div>
+
+                        <div class="flex items-center gap-2.5 shrink-0">
+                            ${isPending ? `
+                                <button onclick="updateBookingStatus('${bk.id}', 'Declined')" class="px-3.5 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 text-xs font-semibold transition">
+                                    Decline
+                                </button>
+                                <button onclick="updateBookingStatus('${bk.id}', 'Confirmed')" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5">
+                                    <i data-lucide="check" class="w-4 h-4"></i>
+                                    <span>Accept Job</span>
+                                </button>
+                            ` : `
+                                <span class="px-3 py-1.5 rounded-xl text-xs font-bold ${bk.status === 'Confirmed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}">
+                                    ${bk.status}
+                                </span>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        /**
+         * 9. ADMIN OVERVIEW LOGIC
+         */
+        function approveVendorKyc(vendorId) {
+            const vendor = appState.kycQueue.find(v => v.id === vendorId);
+            if (!vendor) return;
+            vendor.status = 'Approved';
+            renderAdminOverview();
+            showToast(`${vendor.name} KYC approved and activated on marketplace!`, 'success');
+        }
+
+        function renderAdminOverview() {
+            const sessionGmv = appState.bookings
+                .filter(b => b.status !== 'Declined')
+                .reduce((sum, b) => sum + (b.price || 0), 0);
+
+            const totalGmv = 482900 + sessionGmv;
+            const totalCommission = Math.round(totalGmv * 0.18);
+
+            document.getElementById('admin-gmv').textContent = '₹' + totalGmv.toLocaleString('en-IN');
+            document.getElementById('admin-commission').textContent = '₹' + totalCommission.toLocaleString('en-IN');
+            document.getElementById('admin-total-orders').textContent = appState.bookings.length;
+
+            const kycContainer = document.getElementById('admin-kyc-list');
+            kycContainer.innerHTML = appState.kycQueue.map(v => `
+                <div class="px-6 py-4 flex items-center justify-between gap-4">
+                    <div>
+                        <p class="text-sm font-bold text-slate-900">${v.name} <span class="text-xs font-normal text-slate-400">(${v.id})</span></p>
+                        <p class="text-xs text-slate-500 mt-0.5">City: ${v.city} • Submitted: ${v.doc}</p>
+                    </div>
+                    <div>
+                        ${v.status === 'Pending' ? `
+                            <button onclick="approveVendorKyc('${v.id}')" class="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition">
+                                Verify & Approve
+                            </button>
+                        ` : `
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Approved
+                            </span>
+                        `}
+                    </div>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        /**
+         * 10. CUSTOM TOAST NOTIFICATION SYSTEM (Non-blocking UI feedback)
+         */
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-slate-900 text-white' : 'bg-slate-800 text-slate-100';
+
+            toast.className = `${bgColor} px-4 py-3 rounded-xl shadow-lg border border-slate-700 text-xs sm:text-sm font-medium flex items-center gap-2.5 pointer-events-auto transition-all duration-300`;
+            toast.innerHTML = `
+                <i data-lucide="${type === 'success' ? 'check-circle-2' : 'info'}" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                <span>${message}</span>
+            `;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(8px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
