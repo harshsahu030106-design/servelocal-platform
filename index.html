@@ -266,6 +266,23 @@
                 </div>
             </div>
 
+            <!-- Gemini provider service listing flow -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-6">
+                <h2 class="text-base font-bold text-slate-900">List a New Service</h2>
+                <p class="text-xs text-slate-500 mt-1 mb-4">Submit a service for admin approval before it appears to customers.</p>
+                <form id="provider-service-form" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    <input id="new-service-title" required maxlength="80" placeholder="Service name" class="px-3 py-2.5 rounded-xl border border-slate-200 text-sm">
+                    <select id="new-service-category" class="px-3 py-2.5 rounded-xl border border-slate-200 text-sm">
+                        <option>Appliance Repair</option><option>Home Cleaning</option><option>Plumbing</option><option>Electrical</option><option>Beauty & Wellness</option><option>Moving & Delivery</option><option>Other</option>
+                    </select>
+                    <select id="new-service-model" class="px-3 py-2.5 rounded-xl border border-slate-200 text-sm">
+                        <option value="package">Fixed price</option><option value="quote">Free quote</option>
+                    </select>
+                    <input id="new-service-price" type="number" min="0" step="1" placeholder="Price (₹)" class="px-3 py-2.5 rounded-xl border border-slate-200 text-sm">
+                    <button class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Submit for Approval</button>
+                </form>
+            </div>
+
             <!-- Incoming Bookings & Lead Requests Table/Cards -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -324,6 +341,14 @@
                     <div id="admin-kyc-list" class="divide-y divide-slate-100">
                         <!-- KYC items populated by JS -->
                     </div>
+                </div>
+
+                <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                        <h2 class="text-base font-bold text-slate-900">Service Listing Moderation</h2>
+                        <span class="text-xs text-slate-500">Provider submissions</span>
+                    </div>
+                    <div id="admin-service-list" class="divide-y divide-slate-100"></div>
                 </div>
 
                 <!-- Revenue Split & Architecture Summary Card -->
@@ -703,7 +728,8 @@
             kycQueue: [
                 { id: 'VND-09', name: 'Sai Krupa Plumbing & Sanitary', city: 'Raipur', doc: 'Aadhaar + Trade License', status: 'Pending' },
                 { id: 'VND-12', name: 'Glamour At Doorstep Studio', city: 'Mumbai', doc: 'PAN + Beautician Cert.', status: 'Pending' }
-            ]
+            ],
+            submittedServices: []
         };
 
         const STORAGE_KEY = 'servelocal-demo-state-v1';
@@ -714,6 +740,7 @@
                 if (!saved || typeof saved !== 'object') return;
                 if (Array.isArray(saved.bookings)) appState.bookings = saved.bookings;
                 if (Array.isArray(saved.kycQueue)) appState.kycQueue = saved.kycQueue;
+                if (Array.isArray(saved.submittedServices)) appState.submittedServices = saved.submittedServices;
                 if (typeof saved.providerOnline === 'boolean') appState.providerOnline = saved.providerOnline;
             } catch (error) {
                 console.warn('ServeLocal saved demo data could not be loaded.', error);
@@ -725,6 +752,7 @@
                 localStorage.setItem(STORAGE_KEY, JSON.stringify({
                     bookings: appState.bookings,
                     kycQueue: appState.kycQueue,
+                    submittedServices: appState.submittedServices,
                     providerOnline: appState.providerOnline
                 }));
             } catch (error) {
@@ -757,6 +785,7 @@
             renderBookingsDrawer();
             renderProviderDashboard();
             renderAdminOverview();
+            document.getElementById('provider-service-form').addEventListener('submit', submitProviderService);
             lucide.createIcons();
         });
 
@@ -841,7 +870,8 @@
             const emptyState = document.getElementById('empty-services-state');
             const countLabel = document.getElementById('results-count');
 
-            const filtered = SERVICES_DATA.filter(service => {
+            const visibleServices = SERVICES_DATA.concat(appState.submittedServices.filter(service => service.approved));
+            const filtered = visibleServices.filter(service => {
                 const matchesCity = service.cities.includes(appState.selectedCity);
                 const matchesCategory = appState.selectedCategory === 'All' || service.category === appState.selectedCategory;
                 const matchesModel = appState.modelFilter === 'all' || service.model === appState.modelFilter;
@@ -1196,6 +1226,51 @@
         /**
          * 9. ADMIN OVERVIEW LOGIC
          */
+        function submitProviderService(event) {
+            event.preventDefault();
+            const title = document.getElementById('new-service-title').value.trim();
+            const model = document.getElementById('new-service-model').value;
+            const price = Number(document.getElementById('new-service-price').value || 0);
+            if (!title || (model === 'package' && price <= 0)) {
+                showToast('Enter a service name and a price for fixed-price listings.', 'info');
+                return;
+            }
+            appState.submittedServices.unshift({
+                id: 'USR-' + Date.now().toString(36).toUpperCase(),
+                title,
+                provider: 'CoolTech Services',
+                category: document.getElementById('new-service-category').value,
+                cities: [appState.selectedCity, 'Mumbai', 'Delhi', 'Bengaluru'],
+                rating: 5,
+                reviews: 0,
+                experience: 'New partner',
+                verified: false,
+                model,
+                price: model === 'package' ? price : 0,
+                priceDisplay: model === 'package' ? '₹' + price.toLocaleString('en-IN') : 'Free Quote',
+                duration: 'By appointment',
+                highlights: ['Submitted by a local service provider'],
+                approved: false,
+                status: 'Pending'
+            });
+            saveState();
+            event.target.reset();
+            renderAdminOverview();
+            showToast('Service sent to the admin approval queue.', 'success');
+        }
+
+        function toggleServiceApproval(serviceId) {
+            const service = appState.submittedServices.find(item => item.id === serviceId);
+            if (!service) return;
+            service.approved = !service.approved;
+            service.status = service.approved ? 'Approved' : 'Pending';
+            saveState();
+            renderServices();
+            renderCategoryPills();
+            renderAdminOverview();
+            showToast(service.approved ? 'Service approved and visible to customers.' : 'Service removed from customer results.', 'success');
+        }
+
         function approveVendorKyc(vendorId) {
             const vendor = appState.kycQueue.find(v => v.id === vendorId);
             if (!vendor) return;
@@ -1216,6 +1291,22 @@
             document.getElementById('admin-gmv').textContent = '₹' + totalGmv.toLocaleString('en-IN');
             document.getElementById('admin-commission').textContent = '₹' + totalCommission.toLocaleString('en-IN');
             document.getElementById('admin-total-orders').textContent = appState.bookings.length;
+
+            const serviceContainer = document.getElementById('admin-service-list');
+            serviceContainer.innerHTML = appState.submittedServices.length
+                ? appState.submittedServices.map(service => `
+                    <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-bold text-slate-900">${escapeHTML(service.title)}</p>
+                            <p class="text-xs text-slate-500 mt-0.5">${escapeHTML(service.provider)} • ${escapeHTML(service.category)} • ${service.model === 'package' ? escapeHTML(service.priceDisplay) : 'Free quote'}</p>
+                            <p class="text-xs ${service.approved ? 'text-emerald-600' : 'text-amber-600'} mt-1">${service.approved ? 'Approved' : 'Pending review'}</p>
+                        </div>
+                        <button onclick="toggleServiceApproval('${escapeHTML(service.id)}')" class="px-3.5 py-1.5 rounded-xl ${service.approved ? 'border border-rose-200 text-rose-700 hover:bg-rose-50' : 'bg-brand-600 hover:bg-brand-700 text-white'} text-xs font-semibold">
+                            ${service.approved ? 'Unpublish' : 'Approve'}
+                        </button>
+                    </div>
+                `).join('')
+                : '<p class="px-6 py-8 text-sm text-slate-500">No submitted services yet. Add one from the Provider Dashboard.</p>';
 
             const kycContainer = document.getElementById('admin-kyc-list');
             kycContainer.innerHTML = appState.kycQueue.map(v => `
