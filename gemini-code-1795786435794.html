@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ServeLocal — Book Trusted Local Services</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans">
+
+  <!-- Top Navigation -->
+  <header class="bg-white border-b sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="bg-indigo-600 text-white font-bold px-2.5 py-1 rounded-lg">SL</span>
+        <span class="text-xl font-bold tracking-tight">ServeLocal</span>
+        <span class="text-xs bg-indigo-50 text-indigo-700 font-medium px-2 py-0.5 rounded-full">Customer Portal</span>
+      </div>
+      <nav class="flex items-center gap-3 text-sm font-medium">
+        <a href="index.html" class="text-indigo-600 font-semibold">Customer Home</a>
+        <a href="provider.html" class="text-slate-600 hover:text-indigo-600 px-3 py-1.5 rounded-lg border">Provider Portal →</a>
+        <a href="admin.html" class="text-slate-600 hover:text-indigo-600 px-3 py-1.5 rounded-lg border">Admin Panel →</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero & Search -->
+  <section class="bg-indigo-600 text-white py-12 px-4">
+    <div class="max-w-4xl mx-auto text-center">
+      <h1 class="text-3xl md:text-4xl font-bold mb-3">Home Services & Local Experts, On Demand</h1>
+      <p class="text-indigo-100 mb-6">Compare verified local pros (Justdial style) or book fixed-price packages instantly (Urban Company style).</p>
+      <div class="bg-white p-2 rounded-xl shadow-lg flex flex-col sm:flex-row gap-2 text-slate-800">
+        <select id="cityFilter" class="px-4 py-3 rounded-lg bg-slate-100 font-medium outline-none">
+          <option value="All">All Cities</option>
+          <option value="Raipur">Raipur</option>
+          <option value="Delhi NCR">Delhi NCR</option>
+          <option value="Bengaluru">Bengaluru</option>
+          <option value="Mumbai">Mumbai</option>
+        </select>
+        <input id="searchInput" type="text" placeholder="Search AC repair, electrician, salon, plumber..." class="flex-1 px-4 py-3 outline-none" />
+        <button onclick="renderServices()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition">Search</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Service Listings -->
+  <main class="max-w-6xl mx-auto px-4 py-10">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-xl font-bold">Available Services & Verified Vendors</h2>
+      <span id="serviceCount" class="text-sm text-slate-500"></span>
+    </div>
+    <div id="servicesGrid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+    <!-- Customer's Active Bookings -->
+    <section class="mt-14 bg-white border rounded-2xl p-6 shadow-sm">
+      <h3 class="text-lg font-bold mb-4">My Recent Bookings & Quote Requests</h3>
+      <div id="myBookingsList" class="space-y-3 text-sm"></div>
+    </section>
+  </main>
+
+  <!-- Booking Modal -->
+  <div id="bookingModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+      <h3 id="modalTitle" class="text-xl font-bold mb-1">Book Service</h3>
+      <p id="modalSubtitle" class="text-sm text-slate-500 mb-4"></p>
+      <form id="bookingForm" class="space-y-4">
+        <input type="hidden" id="selectedServiceId" />
+        <div>
+          <label class="block text-sm font-medium mb-1">Your Full Name</label>
+          <input id="custName" required type="text" placeholder="e.g., Aarav Sharma" class="w-full border rounded-lg px-3 py-2" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Phone Number</label>
+          <input id="custPhone" required type="tel" placeholder="e.g., 9876543210" class="w-full border rounded-lg px-3 py-2" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Address / Locality</label>
+          <input id="custAddress" required type="text" placeholder="House No, Street, Area" class="w-full border rounded-lg px-3 py-2" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Preferred Time Slot</label>
+          <select id="custSlot" class="w-full border rounded-lg px-3 py-2">
+            <option>Today, 4:00 PM - 6:00 PM</option>
+            <option>Tomorrow, 10:00 AM - 12:00 PM</option>
+            <option>Tomorrow, 2:00 PM - 4:00 PM</option>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-lg border">Cancel</button>
+          <button type="submit" class="px-5 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700">Confirm Request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_SERVICES = [
+      { id: 1, title: "Split AC Foam-Jet Servicing", vendor: "CoolTech Experts", city: "Raipur", mode: "Fixed Package", price: 599, rating: 4.9, reviews: 312, approved: true },
+      { id: 2, title: "Emergency Electrician & Wiring", vendor: "SparkFix Solutions", city: "Raipur", mode: "Directory Lead", price: 249, rating: 4.7, reviews: 185, approved: true },
+      { id: 3, title: "Full Home Deep Cleaning (2BHK)", vendor: "UrbanShine Crew", city: "Bengaluru", mode: "Fixed Package", price: 2499, rating: 4.8, reviews: 420, approved: true },
+      { id: 4, title: "Salon at Home — Hair & Facial", vendor: "GlowStudio Pro", city: "Delhi NCR", mode: "Fixed Package", price: 1199, rating: 4.9, reviews: 510, approved: true },
+      { id: 5, title: "Plumbing & Water Tank Repair", vendor: "QuickFlow Plumbers", city: "Mumbai", mode: "Directory Lead", price: 299, rating: 4.6, reviews: 140, approved: true }
+    ];
+
+    if (!localStorage.getItem("sl_services")) {
+      localStorage.setItem("sl_services", JSON.stringify(DEFAULT_SERVICES));
+    }
+    if (!localStorage.getItem("sl_bookings")) {
+      localStorage.setItem("sl_bookings", JSON.stringify([]));
+    }
+
+    function getServices() {
+      return JSON.parse(localStorage.getItem("sl_services") || "[]").filter(s => s.approved);
+    }
+
+    function renderServices() {
+      const query = document.getElementById("searchInput").value.toLowerCase();
+      const city = document.getElementById("cityFilter").value;
+      const list = getServices().filter(s =>
+        (city === "All" || s.city === city) &&
+        (s.title.toLowerCase().includes(query) || s.vendor.toLowerCase().includes(query))
+      );
+
+      document.getElementById("serviceCount").textContent = `${list.length} services found`;
+      const grid = document.getElementById("servicesGrid");
+      grid.innerHTML = list.map(s => `
+        <div class="bg-white border rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs mb-2">
+              <span class="px-2.5 py-1 rounded-full font-semibold ${s.mode === 'Fixed Package' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}">${s.mode}</span>
+              <span class="text-slate-500">📍 ${s.city}</span>
+            </div>
+            <h3 class="font-bold text-lg text-slate-900">${s.title}</h3>
+            <p class="text-sm text-slate-500 mt-0.5">By <span class="font-medium text-slate-700">${s.vendor}</span> • ⭐ ${s.rating} (${s.reviews})</p>
+          </div>
+          <div class="mt-5 pt-4 border-t flex items-center justify-between">
+            <div>
+              <span class="text-xs text-slate-400 block">${s.mode === 'Fixed Package' ? 'Fixed Price' : 'Inspection / Visit'}</span>
+              <span class="text-xl font-bold text-slate-900">₹${s.price}</span>
+            </div>
+            <button onclick="openModal(${s.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
+              ${s.mode === 'Fixed Package' ? 'Book Now' : 'Get Free Quote'}
+            </button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function openModal(id) {
+      const service = getServices().find(s => s.id === id);
+      document.getElementById("selectedServiceId").value = id;
+      document.getElementById("modalTitle").textContent = service.title;
+      document.getElementById("modalSubtitle").textContent = `${service.vendor} • ₹${service.price} (${service.mode})`;
+      document.getElementById("bookingModal").classList.remove("hidden");
+      document.getElementById("bookingModal").classList.add("flex");
+    }
+
+    function closeModal() {
+      document.getElementById("bookingModal").classList.add("hidden");
+      document.getElementById("bookingModal").classList.remove("flex");
+    }
+
+    document.getElementById("bookingForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const id = Number(document.getElementById("selectedServiceId").value);
+      const service = getServices().find(s => s.id === id);
+      const bookings = JSON.parse(localStorage.getItem("sl_bookings") || "[]");
+
+      bookings.unshift({
+        bookingId: "BK" + Math.floor(1000 + Math.random() * 9000),
+        serviceTitle: service.title,
+        vendor: service.vendor,
+        price: service.price,
+        mode: service.mode,
+        customerName: document.getElementById("custName").value,
+        phone: document.getElementById("custPhone").value,
+        address: document.getElementById("custAddress").value,
+        slot: document.getElementById("custSlot").value,
+        status: "Pending"
+      });
+
+      localStorage.setItem("sl_bookings", JSON.stringify(bookings));
+      closeModal();
+      e.target.reset();
+      renderMyBookings();
+      alert("Booking submitted! Open provider.html or admin.html to manage this order.");
+    });
+
+    function renderMyBookings() {
+      const bookings = JSON.parse(localStorage.getItem("sl_bookings") || "[]");
+      const container = document.getElementById("myBookingsList");
+      if (!bookings.length) {
+        container.innerHTML = `<p class="text-slate-400">No bookings yet. Select a service above to test the live booking flow.</p>`;
+        return;
+      }
+      container.innerHTML = bookings.map(b => `
+        <div class="p-3.5 border rounded-xl flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <span class="font-bold text-slate-900">${b.serviceTitle}</span>
+            <span class="text-xs text-slate-500 ml-2">(${b.bookingId})</span>
+            <p class="text-xs text-slate-500">Vendor: ${b.vendor} • Slot: ${b.slot}</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="font-semibold">₹${b.price}</span>
+            <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${ b.status === 'Accepted' ? 'bg-emerald-100 text-emerald-700' : b.status === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700' }">${b.status}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    renderServices();
+    renderMyBookings();
+  </script>
+</body>
+</html>
