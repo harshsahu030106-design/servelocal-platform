@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ServeLocal — Service Provider Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans">
+
+  <!-- Provider Header -->
+  <header class="bg-slate-900 text-white">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="bg-emerald-500 text-slate-950 font-bold px-2.5 py-1 rounded-lg">SL</span>
+        <span class="text-xl font-bold">Provider Partner Portal</span>
+      </div>
+      <nav class="flex items-center gap-3 text-sm">
+        <a href="index.html" class="text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700">← Customer View</a>
+        <a href="admin.html" class="text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700">Admin Panel →</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+
+    <!-- Provider Metrics -->
+    <div class="grid sm:grid-cols-3 gap-4">
+      <div class="bg-white p-5 rounded-2xl border shadow-sm">
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Incoming Job Leads</p>
+        <p id="statTotalJobs" class="text-3xl font-bold mt-1">0</p>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border shadow-sm">
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Accepted Jobs</p>
+        <p id="statAccepted" class="text-3xl font-bold text-emerald-600 mt-1">0</p>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border shadow-sm">
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Projected Payout (85%)</p>
+        <p id="statEarnings" class="text-3xl font-bold text-indigo-600 mt-1">₹0</p>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-6">
+      <!-- Left: Job Requests Queue -->
+      <section class="lg:col-span-2 bg-white rounded-2xl border p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold">Live Customer Job Requests</h2>
+          <button onclick="renderJobs()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-medium">Refresh Queue</button>
+        </div>
+        <div id="jobsList" class="space-y-4"></div>
+      </section>
+
+      <!-- Right: Add New Service Listing -->
+      <section class="bg-white rounded-2xl border p-6 shadow-sm h-fit">
+        <h2 class="text-lg font-bold mb-1">List a New Service</h2>
+        <p class="text-xs text-slate-500 mb-4">New listings go to Admin KYC/approval queue before appearing publicly.</p>
+        <form id="newServiceForm" class="space-y-3 text-sm">
+          <div>
+            <label class="block font-medium mb-1">Service Title</label>
+            <input id="srvTitle" required type="text" placeholder="e.g., RO Water Purifier Repair" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="block font-medium mb-1">Business / Vendor Name</label>
+            <input id="srvVendor" required type="text" placeholder="e.g., AquaCare Services" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-medium mb-1">City</label>
+              <select id="srvCity" class="w-full border rounded-lg px-3 py-2">
+                <option>Raipur</option>
+                <option>Delhi NCR</option>
+                <option>Bengaluru</option>
+                <option>Mumbai</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-medium mb-1">Price (₹)</label>
+              <input id="srvPrice" required type="number" min="99" value="499" class="w-full border rounded-lg px-3 py-2" />
+            </div>
+          </div>
+          <div>
+            <label class="block font-medium mb-1">Listing Model</label>
+            <select id="srvMode" class="w-full border rounded-lg px-3 py-2">
+              <option value="Fixed Package">Fixed Package (Urban Company)</option>
+              <option value="Directory Lead">Directory Lead (Justdial)</option>
+            </select>
+          </div>
+          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl">Submit for Admin Approval</button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    function updateJobStatus(bookingId, newStatus) {
+      const bookings = JSON.parse(localStorage.getItem("sl_bookings") || "[]");
+      const idx = bookings.findIndex(b => b.bookingId === bookingId);
+      if (idx !== -1) {
+        bookings[idx].status = newStatus;
+        localStorage.setItem("sl_bookings", JSON.stringify(bookings));
+        renderJobs();
+      }
+    }
+
+    function renderJobs() {
+      const bookings = JSON.parse(localStorage.getItem("sl_bookings") || "[]");
+      const accepted = bookings.filter(b => b.status === "Accepted");
+      const gross = accepted.reduce((sum, b) => sum + Number(b.price), 0);
+
+      document.getElementById("statTotalJobs").textContent = bookings.length;
+      document.getElementById("statAccepted").textContent = accepted.length;
+      document.getElementById("statEarnings").textContent = "₹" + Math.round(gross * 0.85);
+
+      const container = document.getElementById("jobsList");
+      if (!bookings.length) {
+        container.innerHTML = `<p class="text-sm text-slate-400">No incoming bookings yet. Place a booking on index.html to see it arrive here.</p>`;
+        return;
+      }
+
+      container.innerHTML = bookings.map(b => `
+        <div class="border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-900">${b.serviceTitle}</span>
+              <span class="text-xs bg-slate-100 px-2 py-0.5 rounded">${b.bookingId}</span>
+            </div>
+            <p class="text-sm text-slate-600">Customer: <strong>${b.customerName}</strong> (${b.phone})</p>
+            <p class="text-xs text-slate-500">Address: ${b.address} • Slot: ${b.slot}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-lg mr-2">₹${b.price}</span>${b.status === "Pending" ? `
+              <button onclick="updateJobStatus('${b.bookingId}', 'Accepted')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg">Accept</button>
+              <button onclick="updateJobStatus('${b.bookingId}', 'Rejected')" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold px-3 py-2 rounded-lg">Decline</button>
+            ` : `
+              <span class="px-3 py-1 rounded-full text-xs font-semibold ${b.status === 'Accepted' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${b.status}</span>
+            `}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    document.getElementById("newServiceForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const services = JSON.parse(localStorage.getItem("sl_services") || "[]");
+      services.push({
+        id: Date.now(),
+        title: document.getElementById("srvTitle").value,
+        vendor: document.getElementById("srvVendor").value,
+        city: document.getElementById("srvCity").value,
+        mode: document.getElementById("srvMode").value,
+        price: Number(document.getElementById("srvPrice").value),
+        rating: 5.0,
+        reviews: 1,
+        approved: false
+      });
+      localStorage.setItem("sl_services", JSON.stringify(services));
+      e.target.reset();
+      alert("Service submitted! Open admin.html to approve this vendor listing.");
+    });
+
+    renderJobs();
+  </script>
+</body>
+</html>
