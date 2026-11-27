@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ServeLocal — Admin Control Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans">
+
+  <!-- Admin Top Bar -->
+  <header class="bg-indigo-950 text-white">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="bg-amber-400 text-slate-950 font-bold px-2.5 py-1 rounded-lg">SL</span>
+        <span class="text-xl font-bold">Super Admin Console</span>
+      </div>
+      <nav class="flex items-center gap-3 text-sm">
+        <a href="index.html" class="text-indigo-200 hover:text-white px-3 py-1.5 rounded-lg border border-indigo-800">← Customer View</a>
+        <a href="provider.html" class="text-indigo-200 hover:text-white px-3 py-1.5 rounded-lg border border-indigo-800">Provider Portal</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+
+    <!-- Platform KPIs -->
+    <div class="grid sm:grid-cols-4 gap-4">
+      <div class="bg-white p-5 rounded-2xl border shadow-sm">
+        <p class="text-xs uppercase text-slate-400 font-semibold">Total Bookings</p>
+        <p id="kpiBookings" class="text-2xl font-bold mt-1">0</p>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border shadow-sm">
+        <p class="text-xs uppercase text-slate-400 font-semibold">Gross Merchandise Value</p>
+        <p id="kpiGmv" class="text-2xl font-bold mt-1">₹0</p>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border shadow-sm">
+        <p class="text-xs uppercase text-slate-400 font-semibold">Platform Commission (15%)</p>
+        <p id="kpiCommission" class="text-2xl font-bold text-emerald-600 mt-1">₹0</p>
+      </div>
+      <div class="bg-white p-5 rounded-2xl border shadow-sm">
+        <p class="text-xs uppercase text-slate-400 font-semibold">Active Services</p>
+        <p id="kpiServices" class="text-2xl font-bold text-indigo-600 mt-1">0</p>
+      </div>
+    </div>
+
+    <!-- Vendor KYC & Service Approval Table -->
+    <section class="bg-white rounded-2xl border p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-bold">Vendor Service Moderation & KYC Approval</h2>
+          <p class="text-xs text-slate-500">Approve or suspend vendor listings shown on the Customer Portal.</p>
+        </div>
+        <button onclick="resetDemoData()" class="text-xs text-rose-600 border border-rose-200 hover:bg-rose-50 px-3 py-1.5 rounded-lg font-medium">Reset Demo Data</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm border-collapse">
+          <thead>
+            <tr class="border-b text-slate-500">
+              <th class="py-3 px-2">Service</th>
+              <th class="py-3 px-2">Vendor</th>
+              <th class="py-3 px-2">City</th>
+              <th class="py-3 px-2">Model</th>
+              <th class="py-3 px-2">Price</th>
+              <th class="py-3 px-2">Status</th>
+              <th class="py-3 px-2 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody id="adminServicesTable" class="divide-y"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- All Platform Transactions -->
+    <section class="bg-white rounded-2xl border p-6 shadow-sm">
+      <h2 class="text-lg font-bold mb-4">Master Booking & Lead Ledger</h2>
+      <div id="adminBookingsList" class="space-y-2 text-sm"></div>
+    </section>
+
+  </main>
+
+  <script>
+    function toggleApproval(id) {
+      const services = JSON.parse(localStorage.getItem("sl_services") || "[]");
+      const idx = services.findIndex(s => s.id === id);
+      if (idx !== -1) {
+        services[idx].approved = !services[idx].approved;
+        localStorage.setItem("sl_services", JSON.stringify(services));
+        renderAdmin();
+      }
+    }
+
+    function resetDemoData() {
+      localStorage.removeItem("sl_services");
+      localStorage.removeItem("sl_bookings");
+      alert("Demo data cleared. Visit index.html to reload default services.");
+      renderAdmin();
+    }
+
+    function renderAdmin() {
+      const services = JSON.parse(localStorage.getItem("sl_services") || "[]");
+      const bookings = JSON.parse(localStorage.getItem("sl_bookings") || "[]");
+      const gmv = bookings.reduce((sum, b) => sum + Number(b.price), 0);
+
+      document.getElementById("kpiBookings").textContent = bookings.length;
+      document.getElementById("kpiGmv").textContent = "₹" + gmv;
+      document.getElementById("kpiCommission").textContent = "₹" + Math.round(gmv * 0.15);
+      document.getElementById("kpiServices").textContent = services.filter(s => s.approved).length;
+
+      document.getElementById("adminServicesTable").innerHTML = services.map(s => `
+        <tr>
+          <td class="py-3 px-2 font-medium">${s.title}</td>
+          <td class="py-3 px-2">${s.vendor}</td>
+          <td class="py-3 px-2">${s.city}</td>
+          <td class="py-3 px-2">${s.mode}</td>
+          <td class="py-3 px-2 font-semibold">₹${s.price}</td>
+          <td class="py-3 px-2">
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${s.approved ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+              ${s.approved ? 'Live' : 'Pending KYC'}
+            </span>
+          </td>
+          <td class="py-3 px-2 text-right">
+            <button onclick="toggleApproval(${s.id})" class="px-3 py-1 rounded-lg text-xs font-semibold border ${s.approved ? 'text-rose-600 border-rose-200 hover:bg-rose-50' : 'bg-indigo-600 text-white hover:bg-indigo-700'}">
+              ${s.approved ? 'Suspend' : 'Approve'}
+            </button>
+          </td>
+        </tr>
+      `).join("");
+
+      const ledger = document.getElementById("adminBookingsList");
+      ledger.innerHTML = bookings.length ? bookings.map(b => `
+        <div class="p-3 border rounded-xl flex flex-wrap justify-between items-center gap-2">
+          <div>
+            <strong>${b.bookingId}</strong> —${b.serviceTitle} (${b.vendor}) • Customer: ${b.customerName}
+          </div>
+          <div class="flex items-center gap-3">
+            <span>₹${b.price} (Fee: ₹${Math.round(b.price * 0.15)})</span>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100">${b.status}</span>
+          </div>
+        </div>
+      `).join("") : `<p class="text-slate-400">No transactions recorded yet.</p>`;
+    }
+
+    renderAdmin();
+  </script>
+</body>
+</html>
