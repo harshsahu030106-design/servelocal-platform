@@ -48,9 +48,68 @@
             from { opacity: 0; transform: translateY(4px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        body:not(.authenticated) > header,
+        body:not(.authenticated) > main,
+        body:not(.authenticated) > footer { display: none !important; }
+        #auth-screen { position: fixed; inset: 0; z-index: 100; overflow-y: auto; }
+        body.authenticated #auth-screen { display: none; }
+        .auth-card { box-shadow: 0 18px 50px rgba(15, 23, 42, .08); }
+
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <section id="auth-screen" class="bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 px-4 py-10 sm:py-16">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center text-white mb-8">
+                <div class="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-2xl px-4 py-2 mb-4">
+                    <i data-lucide="layers" class="w-5 h-5 text-indigo-300"></i>
+                    <span class="font-bold">ServeLocal</span>
+                </div>
+                <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">Sign in to your portal</h1>
+                <p class="text-slate-300 mt-2">Choose the account type you use to access ServeLocal.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <article class="auth-card bg-white rounded-2xl p-6">
+                    <div class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center mb-4"><i data-lucide="user-round" class="w-5 h-5"></i></div>
+                    <h2 class="text-lg font-bold text-slate-900">Customer login</h2>
+                    <p class="text-sm text-slate-500 mt-1 mb-4">Find services and manage your bookings.</p>
+                    <form class="space-y-3" onsubmit="handleLogin(event, 'customer')">
+                        <label class="block text-xs font-semibold text-slate-600">Email<input id="customer-email" type="email" autocomplete="username" required class="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" placeholder="Email address"></label>
+                        <label class="block text-xs font-semibold text-slate-600">Password<input id="customer-password" type="password" autocomplete="current-password" required class="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" placeholder="Password"></label>
+                        <button class="w-full px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">Sign in as Customer</button>
+                        <p id="customer-login-error" class="hidden text-xs text-rose-600" role="alert"></p>
+                    </form>
+                    <p class="mt-4 p-3 rounded-lg bg-slate-50 text-xs text-slate-500"><strong>Demo:</strong> customer@servelocal.demo / customer123</p>
+                </article>
+                <article class="auth-card bg-white rounded-2xl p-6">
+                    <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-4"><i data-lucide="briefcase-business" class="w-5 h-5"></i></div>
+                    <h2 class="text-lg font-bold text-slate-900">Provider login</h2>
+                    <p class="text-sm text-slate-500 mt-1 mb-4">Manage your service listings and incoming jobs.</p>
+                    <form class="space-y-3" onsubmit="handleLogin(event, 'provider')">
+                        <label class="block text-xs font-semibold text-slate-600">Email<input id="provider-email" type="email" autocomplete="username" required class="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" placeholder="Email address"></label>
+                        <label class="block text-xs font-semibold text-slate-600">Password<input id="provider-password" type="password" autocomplete="current-password" required class="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" placeholder="Password"></label>
+                        <button class="w-full px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Sign in as Provider</button>
+                        <p id="provider-login-error" class="hidden text-xs text-rose-600" role="alert"></p>
+                    </form>
+                    <p class="mt-4 p-3 rounded-lg bg-slate-50 text-xs text-slate-500"><strong>Demo:</strong> provider@servelocal.demo / provider123</p>
+                </article>
+                <article class="auth-card bg-white rounded-2xl p-6">
+                    <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mb-4"><i data-lucide="shield-check" class="w-5 h-5"></i></div>
+                    <h2 class="text-lg font-bold text-slate-900">Admin login</h2>
+                    <p class="text-sm text-slate-500 mt-1 mb-4">Review service listings and platform activity.</p>
+                    <form class="space-y-3" onsubmit="handleLogin(event, 'admin')">
+                        <label class="block text-xs font-semibold text-slate-600">Email<input id="admin-email" type="email" autocomplete="username" required class="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" placeholder="Email address"></label>
+                        <label class="block text-xs font-semibold text-slate-600">Password<input id="admin-password" type="password" autocomplete="current-password" required class="mt-1 w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm" placeholder="Password"></label>
+                        <button class="w-full px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold">Sign in as Admin</button>
+                        <p id="admin-login-error" class="hidden text-xs text-rose-600" role="alert"></p>
+                    </form>
+                    <p class="mt-4 p-3 rounded-lg bg-slate-50 text-xs text-slate-500"><strong>Demo:</strong> admin@servelocal.demo / admin123</p>
+                </article>
+            </div>
+            <p class="text-center text-xs text-slate-300 mt-6 max-w-3xl mx-auto">Demo login for this static prototype. Accounts are checked in this browser only and do not provide production security.</p>
+        </div>
+    </section>
 
     <!-- =====================================================================
          1. TOP NAVIGATION & 3-PORTAL ROLE SWITCHER HEADER
@@ -62,7 +121,7 @@
                 
                 <!-- Brand Logo & Tagline -->
                 <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2.5 cursor-pointer" onclick="switchRole('customer')">
+                    <div class="flex items-center gap-2.5">
                         <div class="bg-brand-600 text-white p-2 rounded-xl shadow-sm">
                             <i data-lucide="layers" class="w-6 h-6"></i>
                         </div>
@@ -95,6 +154,12 @@
                         <i data-lucide="shield-check" class="w-4 h-4"></i>
                         <span>Admin Overview</span>
                     </button>
+                </div>
+
+                <!-- Signed-in account controls -->
+                <div class="flex items-center gap-2">
+                    <span id="signed-in-label" class="text-xs font-semibold text-slate-600"></span>
+                    <button onclick="signOut()" class="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50">Sign out</button>
                 </div>
 
                 <!-- Desktop Bookings Drawer Trigger -->
@@ -729,7 +794,8 @@
                 { id: 'VND-09', name: 'Sai Krupa Plumbing & Sanitary', city: 'Raipur', doc: 'Aadhaar + Trade License', status: 'Pending' },
                 { id: 'VND-12', name: 'Glamour At Doorstep Studio', city: 'Mumbai', doc: 'PAN + Beautician Cert.', status: 'Pending' }
             ],
-            submittedServices: []
+            submittedServices: [],
+            user: null
         };
 
         const STORAGE_KEY = 'servelocal-demo-state-v1';
@@ -741,10 +807,55 @@
                 if (Array.isArray(saved.bookings)) appState.bookings = saved.bookings;
                 if (Array.isArray(saved.kycQueue)) appState.kycQueue = saved.kycQueue;
                 if (Array.isArray(saved.submittedServices)) appState.submittedServices = saved.submittedServices;
+                if (saved.user && ['customer', 'provider', 'admin'].includes(saved.user.role)) appState.user = saved.user;
                 if (typeof saved.providerOnline === 'boolean') appState.providerOnline = saved.providerOnline;
             } catch (error) {
                 console.warn('ServeLocal saved demo data could not be loaded.', error);
             }
+        }
+
+        const DEMO_ACCOUNTS = {
+            customer: { email: 'customer@servelocal.demo', password: 'customer123' },
+            provider: { email: 'provider@servelocal.demo', password: 'provider123' },
+            admin: { email: 'admin@servelocal.demo', password: 'admin123' }
+        };
+
+        function handleLogin(event, role) {
+            event.preventDefault();
+            const email = document.getElementById(role + '-email').value.trim().toLowerCase();
+            const password = document.getElementById(role + '-password').value;
+            const expected = DEMO_ACCOUNTS[role];
+            const error = document.getElementById(role + '-login-error');
+            if (email !== expected.email || password !== expected.password) {
+                error.textContent = 'Email or password is incorrect for this demo account.';
+                error.classList.remove('hidden');
+                return;
+            }
+            error.classList.add('hidden');
+            activateUserSession({ email, role }, true);
+        }
+
+        function activateUserSession(user, persist) {
+            appState.user = user;
+            document.body.classList.add('authenticated');
+            document.getElementById('signed-in-label').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1) + ' • ' + user.email;
+            document.querySelectorAll('.role-tab').forEach(tab => tab.classList.add('hidden'));
+            switchRole(user.role);
+            if (persist) saveState();
+        }
+
+        function signOut() {
+            appState.user = null;
+            try {
+                const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+                delete saved.user;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+            } catch (error) {
+                console.warn('ServeLocal demo session could not be cleared.', error);
+            }
+            document.body.classList.remove('authenticated');
+            document.getElementById('signed-in-label').textContent = '';
+            document.querySelectorAll('input[type="password"]').forEach(input => input.value = '');
         }
 
         function saveState() {
@@ -753,7 +864,8 @@
                     bookings: appState.bookings,
                     kycQueue: appState.kycQueue,
                     submittedServices: appState.submittedServices,
-                    providerOnline: appState.providerOnline
+                    providerOnline: appState.providerOnline,
+                    user: appState.user
                 }));
             } catch (error) {
                 showToast('Could not save changes in this browser. Storage may be unavailable.', 'info');
@@ -771,6 +883,7 @@
          */
         document.addEventListener('DOMContentLoaded', () => {
             loadSavedState();
+            if (appState.user) activateUserSession(appState.user, false);
             // Set default date in booking modal to tomorrow
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
@@ -793,6 +906,7 @@
          * 4. PORTAL ROLE SWITCHER LOGIC (Customer / Provider / Admin)
          */
         function switchRole(role) {
+            if (appState.user && appState.user.role !== role) return;
             appState.activeRole = role;
 
             // Hide all portals
